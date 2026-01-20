@@ -15,7 +15,7 @@ This project enforces code quality standards through automated tooling:
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/tsanders-rh/analyzer-rule-generator.git
+   git clone https://github.com/konveyor-ecosystem/analyzer-rule-generator.git
    cd analyzer-rule-generator
    ```
 

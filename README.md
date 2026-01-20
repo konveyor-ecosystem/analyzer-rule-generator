@@ -1,11 +1,11 @@
 # Analyzer Rule Generator
 
-[![Tests](https://github.com/tsanders-rh/analyzer-rule-generator/workflows/Tests/badge.svg)](https://github.com/tsanders-rh/analyzer-rule-generator/actions)
-[![codecov](https://codecov.io/gh/tsanders-rh/analyzer-rule-generator/branch/main/graph/badge.svg)](https://codecov.io/gh/tsanders-rh/analyzer-rule-generator)
+[![Tests](https://github.com/konveyor-ecosystem/analyzer-rule-generator/workflows/Tests/badge.svg)](https://github.com/konveyor-ecosystem/analyzer-rule-generator/actions)
+[![codecov](https://codecov.io/gh/konveyor-ecosystem/analyzer-rule-generator/branch/main/graph/badge.svg)](https://codecov.io/gh/konveyor-ecosystem/analyzer-rule-generator)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Imports: isort](https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336)](https://pycqa.github.io/isort/)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![License](https://img.shields.io/github/license/tsanders-rh/analyzer-rule-generator)](LICENSE)
+[![License](https://img.shields.io/github/license/konveyor-ecosystem/analyzer-rule-generator)](LICENSE)
 
 AI-powered tool for generating [Konveyor analyzer](https://github.com/konveyor/analyzer-lsp) rules from migration guides and documentation.
 
@@ -225,7 +225,7 @@ See [docs/guides/migration-complexity.md](docs/guides/migration-complexity.md) f
 
 ## Rule Viewer
 
-**🌐 [View Rules Online](https://tsanders-rh.github.io/analyzer-rule-generator/rule-viewer.html)** - Interactive web viewer for any Konveyor ruleset
+**🌐 [View Rules Online](https://konveyor-ecosystem.github.io/analyzer-rule-generator/rule-viewer.html)** - Interactive web viewer for any Konveyor ruleset
 
 Load and explore rules from:
 - GitHub URLs (paste any rule file URL)
