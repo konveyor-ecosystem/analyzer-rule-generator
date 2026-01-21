@@ -35,13 +35,11 @@ def test_output_dir(tmp_path):
 def sample_guide(tmp_path):
     """Create sample migration guide file."""
     guide_file = tmp_path / "guide.md"
-    guide_file.write_text(
-        """# Migration Guide
+    guide_file.write_text("""# Migration Guide
 
 ## Package Changes
 The javax.servlet package has been renamed to jakarta.servlet.
-"""
-    )
+""")
     return str(guide_file)
 
 
@@ -49,14 +47,12 @@ The javax.servlet package has been renamed to jakarta.servlet.
 def sample_openrewrite_recipe(tmp_path):
     """Create sample OpenRewrite recipe file."""
     recipe_file = tmp_path / "recipe.yaml"
-    recipe_file.write_text(
-        """---
+    recipe_file.write_text("""---
 recipeList:
   - org.openrewrite.java.ChangePackage:
       oldPackageName: javax.servlet
       newPackageName: jakarta.servlet
-"""
-    )
+""")
     return str(recipe_file)
 
 
@@ -277,12 +273,10 @@ class TestCLIOutputGeneration:
 
         # Create guide with content that will generate multiline messages
         guide = tmp_path / "multiline-guide.md"
-        guide.write_text(
-            """# Test Guide
+        guide.write_text("""# Test Guide
 The javax.servlet package has been renamed.
 This requires updating import statements.
-"""
-        )
+""")
 
         # Mock LLM that returns a pattern with multiline message
         mock = Mock()

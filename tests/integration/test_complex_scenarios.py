@@ -24,13 +24,11 @@ class TestLargeGuides:
         # Generate a large guide
         guide_sections = []
         for i in range(50):
-            guide_sections.append(
-                f"""
+            guide_sections.append(f"""
 ## Pattern {i}
 The old.package.{i} has been renamed to new.package.{i}.
 Also, the OldClass{i} should be replaced with NewClass{i}.
-"""
-            )
+""")
 
         large_guide = "# Large Migration Guide\n" + "\n".join(guide_sections)
 

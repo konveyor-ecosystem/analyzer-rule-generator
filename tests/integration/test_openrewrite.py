@@ -81,14 +81,12 @@ recipeList:
         """Should load and convert ChangePackage recipe from YAML file."""
         # Write recipe to file
         recipe_file = tmp_path / "recipe.yml"
-        recipe_file.write_text(
-            """---
+        recipe_file.write_text("""---
 recipeList:
   - org.openrewrite.java.ChangePackage:
       oldPackageName: com.sun.net.ssl
       newPackageName: javax.net.ssl
-"""
-        )
+""")
 
         # Mock LLM
         mock_llm = Mock()
