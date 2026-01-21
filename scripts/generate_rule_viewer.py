@@ -18,6 +18,7 @@ Use docs/rule-viewer.html when you want:
 - GitHub Pages hosting
 - One viewer for all rulesets
 """
+
 import argparse
 import json
 import sys

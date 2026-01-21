@@ -5,6 +5,7 @@ Prepare Konveyor ruleset submission package.
 This script helps prepare generated rules for submission to the Konveyor rulesets
 repository by creating the required directory structure and test templates.
 """
+
 import argparse
 import shutil
 import sys

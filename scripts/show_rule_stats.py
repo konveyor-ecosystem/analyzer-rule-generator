@@ -50,6 +50,7 @@ Note:
     The script expects YAML files containing arrays of analyzer rules.
     Each rule should have the attributes being analyzed.
 """
+
 import sys
 from collections import defaultdict
 from glob import glob

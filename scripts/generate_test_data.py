@@ -7,6 +7,7 @@ contains code violations matching the generated rules.
 
 Supports multiple languages: Java, TypeScript, Go, Python, etc.
 """
+
 import argparse
 import os
 import re

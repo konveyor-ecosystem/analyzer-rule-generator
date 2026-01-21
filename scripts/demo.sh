@@ -47,10 +47,10 @@ NC='\033[0m' # No Color
 # ============================================================================
 
 # Option 1: React 17 to 18 (SMALL - Recommended for quick demos ~5 min)
-#GUIDE_URL="https://react.dev/blog/2022/03/08/react-18-upgrade-guide"
-#SOURCE="react-17"
-#TARGET="react-18"
-#FOLLOW_LINKS_FLAG=""  # Single page guide
+GUIDE_URL="https://react.dev/blog/2022/03/08/react-18-upgrade-guide"
+SOURCE="react-17"
+TARGET="react-18"
+FOLLOW_LINKS_FLAG=""  # Single page guide
 
 # Option 2: Go 1.17 to 1.18 (SMALL - Deprecated API migrations ~5-8 min)
 # GUIDE_URL="https://tip.golang.org/doc/go1.18"
@@ -65,10 +65,10 @@ NC='\033[0m' # No Color
 # FOLLOW_LINKS_FLAG=""  # Single page guide
 
 # Option 4: PatternFly v5 to v6 (LARGE - ~15-20 min, comprehensive)
-GUIDE_URL="https://www.patternfly.org/get-started/upgrade/"
-SOURCE="patternfly-v5"
-TARGET="patternfly-v6"
-FOLLOW_LINKS_FLAG="--follow-links --max-depth 1"
+#GUIDE_URL="https://www.patternfly.org/get-started/upgrade/"
+#SOURCE="patternfly-v5"
+#TARGET="patternfly-v6"
+#FOLLOW_LINKS_FLAG="--follow-links --max-depth 1"
 
 # Demo output directories - organized by migration guide
 DEMO_DIR="demo-output"

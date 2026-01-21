@@ -41,6 +41,7 @@ Example analyzer output formats supported:
           version: "2.5.0"
           provider: "java"
 """
+
 import argparse
 import json
 import re
