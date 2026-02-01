@@ -416,7 +416,7 @@ class AnalyzerRuleGenerator:
 
             return build_go_referenced_condition(
                 pattern.source_fqn or pattern.source_pattern,
-                alternative_patterns=pattern.alternative_fqns
+                alternative_patterns=pattern.alternative_fqns,
             )
 
         else:  # Java provider
