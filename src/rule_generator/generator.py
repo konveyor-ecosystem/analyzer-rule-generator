@@ -336,9 +336,9 @@ class AnalyzerRuleGenerator:
 
             return build_combo_condition(conditions)
 
-        # Nodejs and csharp providers can use source_pattern as fallback
+        # Nodejs, csharp, and go providers can use source_pattern as fallback
         # Other providers require source_fqn
-        if provider not in ["nodejs", "csharp"] and not pattern.source_fqn:
+        if provider not in ["nodejs", "csharp", "go"] and not pattern.source_fqn:
             # If no FQN, we can't create a proper when condition for static analysis
             return None
 

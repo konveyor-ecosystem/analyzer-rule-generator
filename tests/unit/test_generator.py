@@ -341,6 +341,66 @@ class TestWhenConditionBuilding:
         assert "nodejs.referenced" in condition
         assert condition["nodejs.referenced"]["pattern"] == "oldFunction"
 
+    def test_build_go_referenced_condition(self):
+        """Should build go.referenced condition without location parameter"""
+        generator = AnalyzerRuleGenerator()
+        pattern = MigrationPattern(
+            source_pattern="io/ioutil",
+            source_fqn="io/ioutil",
+            provider_type="go",
+            complexity="TRIVIAL",
+            category="api",
+            rationale="Package deprecated",
+        )
+
+        condition = generator._build_when_condition(pattern)
+
+        assert "go.referenced" in condition
+        assert condition["go.referenced"]["pattern"] == "io/ioutil"
+        # Verify location parameter is NOT present
+        assert "location" not in condition["go.referenced"]
+
+    def test_build_go_condition_with_alternatives(self):
+        """Should build OR condition with alternative FQNs for Go (without location)"""
+        generator = AnalyzerRuleGenerator()
+        pattern = MigrationPattern(
+            source_pattern="bytes.Title",
+            source_fqn="bytes.Title",
+            alternative_fqns=["bytes.ToTitle"],
+            provider_type="go",
+            complexity="MEDIUM",
+            category="api",
+            rationale="Function renamed",
+        )
+
+        condition = generator._build_when_condition(pattern)
+
+        assert "or" in condition
+        assert len(condition["or"]) == 2
+        assert condition["or"][0]["go.referenced"]["pattern"] == "bytes.Title"
+        assert condition["or"][1]["go.referenced"]["pattern"] == "bytes.ToTitle"
+        # Verify location parameter is NOT present in any alternative
+        assert "location" not in condition["or"][0]["go.referenced"]
+        assert "location" not in condition["or"][1]["go.referenced"]
+
+    def test_build_go_condition_uses_source_pattern_fallback(self):
+        """Should use source_pattern if source_fqn not available for Go"""
+        generator = AnalyzerRuleGenerator()
+        pattern = MigrationPattern(
+            source_pattern="net/http",
+            provider_type="go",
+            complexity="MEDIUM",
+            category="api",
+            rationale="Package change",
+        )
+
+        condition = generator._build_when_condition(pattern)
+
+        assert condition is not None
+        assert "go.referenced" in condition
+        assert condition["go.referenced"]["pattern"] == "net/http"
+        assert "location" not in condition["go.referenced"]
+
     def test_build_condition_returns_none_without_fqn(self):
         """Should return None if no source_fqn or pattern"""
         generator = AnalyzerRuleGenerator()
