@@ -176,34 +176,30 @@ def build_java_referenced_condition(
 
 
 def build_go_referenced_condition(
-    pattern: str, location: str, alternative_patterns: Optional[List[str]] = None
+    pattern: str, location: str = None, alternative_patterns: Optional[List[str]] = None
 ) -> Dict[str, Any]:
     """
     Build a go.referenced condition with optional alternatives.
 
     Args:
         pattern: Symbol/package to find (e.g., "bytes.Title", "net/http")
-        location: Location type (METHOD_CALL, IMPORT, etc.)
+        location: Deprecated parameter, no longer used (go provider doesn't support location)
         alternative_patterns: Optional list of alternative patterns
 
     Returns:
         Go referenced condition (simple or OR with alternatives)
 
     Examples:
-        >>> build_go_referenced_condition(
-        ...     "bytes.Title",
-        ...     "METHOD_CALL"
-        ... )
-        {"go.referenced": {"pattern": "bytes.Title", "location": "METHOD_CALL"}}
+        >>> build_go_referenced_condition("bytes.Title")
+        {"go.referenced": {"pattern": "bytes.Title"}}
     """
-    base_condition = {"go.referenced": {"pattern": pattern, "location": location}}
+    base_condition = {"go.referenced": {"pattern": pattern}}
 
     if alternative_patterns:
         return build_or_condition_with_alternatives(
             base_condition,
             alternative_patterns,
             "go.referenced",
-            additional_keys={"location": location},
         )
 
     return base_condition
