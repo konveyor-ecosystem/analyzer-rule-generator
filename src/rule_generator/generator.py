@@ -412,20 +412,11 @@ class AnalyzerRuleGenerator:
         elif provider == "go":
             # Use go.referenced for semantic symbol analysis in Go code
             # The go provider finds references to functions, methods, packages, etc.
-
-            # Determine location (default to METHOD_CALL for function/method references)
-            # Go location types: IMPORT, METHOD_CALL, VARIABLE, TYPE, etc.
-            location_str = "METHOD_CALL"  # Default for Go functions
-            if pattern.location_type:
-                # Convert enum to string if necessary
-                location_str = (
-                    pattern.location_type.value
-                    if hasattr(pattern.location_type, 'value')
-                    else str(pattern.location_type)
-                )
+            # Note: location_type is not supported by the go provider
 
             return build_go_referenced_condition(
-                pattern.source_fqn or pattern.source_pattern, location_str, pattern.alternative_fqns
+                pattern.source_fqn or pattern.source_pattern,
+                alternative_patterns=pattern.alternative_fqns
             )
 
         else:  # Java provider
