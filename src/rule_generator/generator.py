@@ -75,6 +75,46 @@ IMPORT_FROM_PATTERN = re.compile(r"from\s+['\"]([^'\"]+)['\"]")
 IMPORT_COMPONENT_PATTERN = re.compile(r"import\s*\{\s*([A-Z][A-Za-z0-9_]*)\s*\}\s*from")
 
 
+def validate_java_pattern(pattern: str, location: str) -> List[str]:
+    """
+    Validate Java provider pattern syntax.
+
+    Checks for common pattern syntax errors that could cause rules to fail,
+    particularly the Eclipse JDT SearchPattern requirement that wildcards
+    must not immediately follow dots in package patterns.
+
+    Args:
+        pattern: The pattern string to validate
+        location: The location type (e.g., "PACKAGE", "IMPORT", "TYPE")
+
+    Returns:
+        List of validation warnings/errors (empty if valid)
+    """
+    warnings = []
+
+    # Check for asterisk after dot in package patterns
+    # This is invalid Eclipse JDT SearchPattern syntax
+    if location == "PACKAGE" and ".*" in pattern:
+        # Suggest the corrected pattern
+        suggested_pattern = pattern.replace(".*", "*")
+        warnings.append(
+            f"Pattern '{pattern}' contains '.*' which is invalid for PACKAGE location. "
+            f"The asterisk wildcard must NOT immediately follow a dot. "
+            f"Use '{suggested_pattern}' instead."
+        )
+
+    # Check for wildcards in IMPORT patterns
+    # IMPORT location should use specific class names, not wildcards
+    if location == "IMPORT" and "*" in pattern:
+        warnings.append(
+            f"Pattern '{pattern}' contains wildcard '*' with IMPORT location. "
+            f"IMPORT location should use specific class names (e.g., 'java.applet.Applet'), "
+            f"not wildcards. Consider using PACKAGE location with a corrected wildcard pattern."
+        )
+
+    return warnings
+
+
 class AnalyzerRuleGenerator:
     """Generate Konveyor analyzer rules from migration patterns."""
 
@@ -452,6 +492,12 @@ class AnalyzerRuleGenerator:
                 # For IMPORT location, ensure we use specific class names, not package wildcards
                 # The pattern should already be a fully qualified class name from extraction
                 pattern_str = pattern.source_fqn
+
+                # Validate pattern syntax
+                validation_warnings = validate_java_pattern(pattern_str, location.value)
+                if validation_warnings:
+                    for warning in validation_warnings:
+                        print(f"[Pattern Validation Warning] {warning}")
 
                 return build_java_referenced_condition(
                     pattern_str, location.value, pattern.alternative_fqns

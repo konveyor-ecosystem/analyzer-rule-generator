@@ -22,14 +22,16 @@ when:
     pattern: java.applet.Applet
 ```
 
-#### 2. Import Detection
-Detects imports of specific packages/classes:
+#### 2. Package Detection
+Detects usage of classes from specific packages:
 ```yaml
 when:
   java.referenced:
-    location: IMPORT
-    pattern: java.applet.*
+    location: PACKAGE
+    pattern: java.applet*
 ```
+
+**Note**: When using wildcards with package patterns, the asterisk must NOT immediately follow a dot. Use `java.applet*` instead of `java.applet.*`.
 
 #### 3. Inheritance Detection
 Detects classes extending/implementing:
@@ -57,6 +59,126 @@ when:
     location: CONSTRUCTOR_CALL
     pattern: java.applet.Applet
 ```
+
+#### 6. Import Statement Detection
+Detects specific import statements:
+```yaml
+when:
+  java.referenced:
+    location: IMPORT
+    pattern: java.applet.Applet
+```
+
+**Note**: For IMPORT location, use specific class names, not package wildcards.
+
+#### 7. Implements Type Detection
+Detects types implementing specific interfaces:
+```yaml
+when:
+  java.referenced:
+    location: IMPLEMENTS_TYPE
+    pattern: java.io.Serializable
+```
+
+#### 8. Enum Constant Detection
+Detects references to enum constants:
+```yaml
+when:
+  java.referenced:
+    location: ENUM_CONSTANT
+    pattern: java.time.temporal.ChronoUnit.DAYS
+```
+
+#### 9. Return Type Detection
+Detects method return types:
+```yaml
+when:
+  java.referenced:
+    location: RETURN_TYPE
+    pattern: java.lang.String
+```
+
+#### 10. Variable Declaration Detection
+Detects variable type declarations:
+```yaml
+when:
+  java.referenced:
+    location: VARIABLE_DECLARATION
+    pattern: java.util.Date
+```
+
+#### 11. Field Declaration Detection
+Detects field declarations (can include annotation matching):
+```yaml
+when:
+  java.referenced:
+    location: FIELD
+    pattern: java.lang.String
+```
+
+#### 12. Method Declaration Detection
+Detects method declarations (can include annotation matching):
+```yaml
+when:
+  java.referenced:
+    location: METHOD
+    pattern: javax.ejb.Stateless
+```
+
+#### 13. Class Declaration Detection
+Detects class declarations (can include annotation matching):
+```yaml
+when:
+  java.referenced:
+    location: CLASS
+    pattern: javax.persistence.Entity
+```
+
+## Pattern Syntax Rules
+
+The Java provider uses [Eclipse JDT SearchPattern](https://help.eclipse.org/latest/topic/org.eclipse.jdt.doc.isv/reference/api/org/eclipse/jdt/core/search/SearchPattern.html) syntax.
+
+### Wildcard Rules
+
+- `*` matches any sequence of characters
+- **CRITICAL**: The asterisk wildcard must NOT be placed immediately after a dot (`.`) for package patterns
+  - ✅ **Correct**: `javax.xml*` (matches `javax.xml`, `javax.xml.bind`, etc.)
+  - ❌ **Incorrect**: `javax.xml.*` (invalid syntax)
+
+### Method Pattern Syntax
+
+For method patterns, you can specify return types and signatures:
+
+```yaml
+# Match any method returning String
+when:
+  java.referenced:
+    location: METHOD_CALL
+    pattern: "* java.lang.String"
+
+# Match specific method signature
+when:
+  java.referenced:
+    location: METHOD_CALL
+    pattern: "org.konveyor.MyClass.method(*) java.util.List<? extends java.lang.String>"
+```
+
+**Known Limitation**: Fully qualified static method matching is prone to errors in the analyzer.
+
+### Pattern Match Types
+
+Eclipse JDT SearchPattern supports:
+- **Exact match**: Full qualified name without wildcards
+- **Prefix match**: Pattern ending with `*`
+- **Pattern match**: Pattern containing `*` wildcards
+- **Regexp match**: Regular expression patterns (advanced usage)
+
+### Best Practices
+
+1. **For PACKAGE location**: Use patterns like `java.applet*` (no dot before asterisk)
+2. **For IMPORT location**: Use specific class names like `java.applet.Applet`
+3. **For TYPE/CLASS location**: Use fully qualified names or wildcards
+4. **For METHOD_CALL**: Include return type when disambiguation is needed
 
 ## Input Schema for Generator
 
