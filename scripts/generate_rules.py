@@ -19,6 +19,7 @@ import yaml
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+from rule_generator.eslint_extraction import ESLintRuleExtractor
 from rule_generator.extraction import MigrationPatternExtractor, detect_language_from_frameworks
 from rule_generator.generator import AnalyzerRuleGenerator
 from rule_generator.ingestion import GuideIngester
@@ -152,6 +153,11 @@ def main():
         "--from-openrewrite", help="Path or URL to OpenRewrite recipe YAML file"
     )
 
+    input_group.add_argument(
+        "--eslint-repo",
+        help="Git repository URL or local path to ESLint codemod rules (e.g., https://github.com/patternfly/pf-codemods.git)",
+    )
+
     parser.add_argument(
         "--source", required=True, help="Source framework name (e.g., 'spring-boot')"
     )
@@ -193,6 +199,18 @@ def main():
         help="Maximum depth for recursive link following (default: 2)",
     )
 
+    parser.add_argument(
+        "--eslint-rules-path",
+        default="packages/eslint-plugin-pf-codemods/src/rules/v6",
+        help="Path to rules directory within ESLint repository (default: PatternFly v6 path)",
+    )
+
+    parser.add_argument(
+        "--eslint-rule-filter",
+        nargs="+",
+        help="Optional list of specific rule names to extract (e.g., button-rename-isActive)",
+    )
+
     args = parser.parse_args()
 
     # Setup logging (respects DEBUG and LOG_LEVEL env vars)
@@ -228,52 +246,89 @@ def main():
         args.output = f"examples/output/{source_base}"
 
     # Determine input source
-    input_source = args.guide or args.from_openrewrite
+    input_source = args.guide or args.from_openrewrite or args.eslint_repo
     from_openrewrite = args.from_openrewrite is not None
+    from_eslint = args.eslint_repo is not None
 
     print(f"Generating analyzer rules: {args.source} → {args.target}")
-    print(f"{'OpenRewrite Recipe' if from_openrewrite else 'Guide'}: {input_source}")
+    if from_eslint:
+        print(f"ESLint Repository: {input_source}")
+        print(f"Rules Path: {args.eslint_rules_path}")
+        if args.eslint_rule_filter:
+            print(f"Rule Filter: {', '.join(args.eslint_rule_filter)}")
+    else:
+        print(f"{'OpenRewrite Recipe' if from_openrewrite else 'Guide'}: {input_source}")
+        print(f"LLM: {args.provider} {args.model or '(default)'}")
     print(f"Output: {args.output}")
-    print(f"LLM: {args.provider} {args.model or '(default)'}")
     print()
 
-    # Step 1: Ingest content
-    if from_openrewrite:
-        print("[1/3] Ingesting OpenRewrite recipe...")
-        from rule_generator.openrewrite import OpenRewriteRecipeIngester
+    # Handle ESLint extraction (no LLM needed)
+    if from_eslint:
+        print("[1/2] Extracting patterns from ESLint rules...")
 
-        ingester = OpenRewriteRecipeIngester()
-        guide_content = ingester.ingest(args.from_openrewrite)
+        # Determine if repo_url or local_path
+        if args.eslint_repo.startswith("http://") or args.eslint_repo.startswith("https://"):
+            repo_url = args.eslint_repo
+            local_path = None
+        else:
+            repo_url = None
+            local_path = args.eslint_repo
+
+        # Create extractor and extract patterns
+        with ESLintRuleExtractor(repo_url=repo_url, local_path=local_path) as extractor:
+            patterns = extractor.extract_patterns(
+                rules_path=args.eslint_rules_path,
+                source_framework=args.source,
+                target_framework=args.target,
+                rule_filter=args.eslint_rule_filter,
+            )
+
+        if not patterns:
+            print("Error: No patterns extracted from ESLint rules")
+            sys.exit(1)
+
+        print(f"  ✓ Extracted {len(patterns)} patterns from ESLint rules")
+
+    # Handle traditional guide/OpenRewrite extraction (with LLM)
     else:
-        print("[1/3] Ingesting guide...")
-        if args.follow_links:
-            print(f"  → Following related links (max depth: {args.max_depth})")
-        ingester = GuideIngester(follow_links=args.follow_links, max_depth=args.max_depth)
-        guide_content = ingester.ingest(args.guide)
+        # Step 1: Ingest content
+        if from_openrewrite:
+            print("[1/3] Ingesting OpenRewrite recipe...")
+            from rule_generator.openrewrite import OpenRewriteRecipeIngester
 
-    if not guide_content:
-        print(f"Error: Failed to ingest {'recipe' if from_openrewrite else 'guide'}")
-        sys.exit(1)
+            ingester = OpenRewriteRecipeIngester()
+            guide_content = ingester.ingest(args.from_openrewrite)
+        else:
+            print("[1/3] Ingesting guide...")
+            if args.follow_links:
+                print(f"  → Following related links (max depth: {args.max_depth})")
+            ingester = GuideIngester(follow_links=args.follow_links, max_depth=args.max_depth)
+            guide_content = ingester.ingest(args.guide)
 
-    print(f"  ✓ Ingested {len(guide_content)} characters")
+        if not guide_content:
+            print(f"Error: Failed to ingest {'recipe' if from_openrewrite else 'guide'}")
+            sys.exit(1)
 
-    # Step 2: Extract patterns
-    print("[2/3] Extracting patterns with LLM...")
-    llm = get_llm_provider(provider=args.provider, model=args.model, api_key=args.api_key)
+        print(f"  ✓ Ingested {len(guide_content)} characters")
 
-    extractor = MigrationPatternExtractor(llm, from_openrewrite=from_openrewrite)
-    patterns = extractor.extract_patterns(
-        guide_content, source_framework=args.source, target_framework=args.target
-    )
+        # Step 2: Extract patterns
+        print("[2/3] Extracting patterns with LLM...")
+        llm = get_llm_provider(provider=args.provider, model=args.model, api_key=args.api_key)
 
-    if not patterns:
-        print("Error: No patterns extracted")
-        sys.exit(1)
+        extractor = MigrationPatternExtractor(llm, from_openrewrite=from_openrewrite)
+        patterns = extractor.extract_patterns(
+            guide_content, source_framework=args.source, target_framework=args.target
+        )
 
-    print(f"  ✓ Extracted {len(patterns)} patterns")
+        if not patterns:
+            print("Error: No patterns extracted")
+            sys.exit(1)
+
+        print(f"  ✓ Extracted {len(patterns)} patterns")
 
     # Step 3: Generate rules (grouped by concern)
-    print("[3/3] Generating analyzer rules...")
+    step_num = 2 if from_eslint else 3
+    print(f"[{step_num}/{step_num}] Generating analyzer rules...")
 
     generator = AnalyzerRuleGenerator(
         source_framework=args.source,
@@ -329,7 +384,8 @@ def main():
     language = detect_language_from_frameworks(args.source, args.target)
 
     # Run LLM validation if language is JS/TS and we have rules to validate
-    if language in ["javascript", "typescript"] and all_generated_rules:
+    # Skip for ESLint extraction (no LLM available)
+    if not from_eslint and language in ["javascript", "typescript"] and all_generated_rules:
         print("\n" + "=" * 80)
         print("LLM-BASED VALIDATION (EXPERIMENTAL)")
         print("=" * 80)
