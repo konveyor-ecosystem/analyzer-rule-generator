@@ -4,6 +4,8 @@ For Java code patterns (classes, annotations, imports), use these fields:
 - **source_fqn**: Fully qualified class name (e.g., "javax.ejb.Stateless")
 - **location_type**: One of:
   - **IMPORT**: For detecting import statements of specific classes (e.g., "import org.example.ClassName;")
+    * Use specific class names, NOT package wildcards
+    * Example: "java.applet.Applet" (correct), not "java.applet.*" (incorrect)
   - **TYPE**: For detecting when a class is used as a type (field type, parameter type, return type, variable declaration)
     * Use this when the pattern is a CLASS that appears in code as a type reference
     * Example: "PathMatchConfigurer" used as parameter type in "void config(PathMatchConfigurer c)"
@@ -14,7 +16,26 @@ For Java code patterns (classes, annotations, imports), use these fields:
   - **ANNOTATION**: For annotation usage (e.g., @Deprecated, @Stateless)
   - **INHERITANCE**: For detecting class inheritance (extends/implements)
   - **PACKAGE**: For detecting package references
+    * **CRITICAL**: Wildcard must NOT follow a dot - use "javax.xml*" NOT "javax.xml.*"
+  - **IMPLEMENTS_TYPE**: For detecting types implementing specific interfaces (e.g., "java.io.Serializable")
+  - **ENUM_CONSTANT**: For detecting enum constant references (e.g., "java.time.temporal.ChronoUnit.DAYS")
+  - **RETURN_TYPE**: For detecting method return types
+  - **VARIABLE_DECLARATION**: For detecting variable type declarations
+  - **FIELD**: For detecting field declarations (can include annotation matching)
+  - **METHOD**: For detecting method declarations (can include annotation matching)
+  - **CLASS**: For detecting class declarations (can include annotation matching)
+  - **CONSTRUCTOR_CALL**: For detecting class instantiation (e.g., "new ClassName()")
 - **file_pattern**: Can be null
+
+**CRITICAL Pattern Syntax Rules (Eclipse JDT SearchPattern):**
+- Wildcards: Use "*" to match any sequence of characters
+- **PACKAGE patterns**: Asterisk must NOT follow a dot
+  * ✅ Correct: "javax.xml*" (matches javax.xml, javax.xml.bind, etc.)
+  * ❌ Incorrect: "javax.xml.*" (invalid syntax - will not work!)
+- **IMPORT patterns**: Use specific class names only (e.g., "javax.xml.bind.JAXBContext")
+- **METHOD patterns**: Can include return types and signatures
+  * Example: "* java.lang.String" (any method returning String)
+  * Example: "com.example.MyClass.method(*) java.util.List"
 
 **Maven Dependency Detection Instructions:**
 For Maven dependency changes (pom.xml), use these fields:

@@ -1967,3 +1967,282 @@ class TestJavaDependencyPatterns:
         assert rule is not None
         # Should set lowerbound to match any version
         assert rule.when["java.dependency"]["lowerbound"] == "0.0.0"
+
+
+class TestJavaPatternValidation:
+    """Test Java pattern syntax validation."""
+
+    def test_validate_package_pattern_with_dot_asterisk(self):
+        """Should warn about asterisk after dot in PACKAGE patterns"""
+        from src.rule_generator.generator import validate_java_pattern
+
+        warnings = validate_java_pattern("javax.xml.*", "PACKAGE")
+
+        assert len(warnings) == 1
+        assert "'javax.xml.*'" in warnings[0]
+        assert "invalid" in warnings[0].lower()
+        assert "'javax.xml*'" in warnings[0]  # Should suggest the correct pattern
+
+    def test_validate_package_pattern_with_correct_wildcard(self):
+        """Should not warn about correct PACKAGE wildcard patterns"""
+        from src.rule_generator.generator import validate_java_pattern
+
+        warnings = validate_java_pattern("javax.xml*", "PACKAGE")
+
+        assert len(warnings) == 0
+
+    def test_validate_import_pattern_with_wildcard(self):
+        """Should warn about wildcards in IMPORT patterns"""
+        from src.rule_generator.generator import validate_java_pattern
+
+        warnings = validate_java_pattern("java.applet.*", "IMPORT")
+
+        assert len(warnings) == 1
+        assert "wildcard" in warnings[0].lower()
+        assert "IMPORT" in warnings[0]
+        assert "specific class names" in warnings[0]
+
+    def test_validate_import_pattern_without_wildcard(self):
+        """Should not warn about specific class names in IMPORT patterns"""
+        from src.rule_generator.generator import validate_java_pattern
+
+        warnings = validate_java_pattern("java.applet.Applet", "IMPORT")
+
+        assert len(warnings) == 0
+
+    def test_validate_type_pattern_allows_wildcards(self):
+        """Should not warn about wildcards in TYPE patterns"""
+        from src.rule_generator.generator import validate_java_pattern
+
+        warnings = validate_java_pattern("java.util.*", "TYPE")
+
+        # TYPE location can use wildcards
+        # Only PACKAGE location has the "no dot before asterisk" rule
+        assert len(warnings) == 0
+
+    def test_validation_warns_on_pattern_generation(self, capsys):
+        """Should print warnings when generating rules with invalid patterns"""
+        generator = AnalyzerRuleGenerator(
+            source_framework="jakarta-8", target_framework="jakarta-10"
+        )
+
+        pattern = MigrationPattern(
+            source_pattern="javax.xml.*",
+            source_fqn="javax.xml.*",
+            location_type=LocationType.PACKAGE,
+            complexity="MEDIUM",
+            category="api",
+            rationale="Package migration",
+        )
+
+        rule = generator._pattern_to_rule(pattern)
+
+        # Capture printed output
+        captured = capsys.readouterr()
+
+        # Should still generate the rule
+        assert rule is not None
+
+        # Should print validation warning
+        assert "[Pattern Validation Warning]" in captured.out
+        assert "javax.xml.*" in captured.out
+        assert "invalid" in captured.out.lower()
+
+
+class TestNewJavaLocationTypes:
+    """Test generation of rules with new location types."""
+
+    def test_implements_type_location(self):
+        """Should generate rule with IMPLEMENTS_TYPE location"""
+        generator = AnalyzerRuleGenerator(source_framework="jdk-17", target_framework="jdk-21")
+
+        pattern = MigrationPattern(
+            source_pattern="java.io.Serializable",
+            source_fqn="java.io.Serializable",
+            location_type=LocationType.IMPLEMENTS_TYPE,
+            complexity="MEDIUM",
+            category="api",
+            rationale="Interface usage detection",
+        )
+
+        rule = generator._pattern_to_rule(pattern)
+
+        assert rule is not None
+        assert "java.referenced" in rule.when
+        assert rule.when["java.referenced"]["location"] == "IMPLEMENTS_TYPE"
+        assert rule.when["java.referenced"]["pattern"] == "java.io.Serializable"
+
+    def test_enum_constant_location(self):
+        """Should generate rule with ENUM_CONSTANT location"""
+        generator = AnalyzerRuleGenerator(source_framework="jdk-17", target_framework="jdk-21")
+
+        pattern = MigrationPattern(
+            source_pattern="java.time.temporal.ChronoUnit.DAYS",
+            source_fqn="java.time.temporal.ChronoUnit.DAYS",
+            location_type=LocationType.ENUM_CONSTANT,
+            complexity="MEDIUM",
+            category="api",
+            rationale="Enum constant detection",
+        )
+
+        rule = generator._pattern_to_rule(pattern)
+
+        assert rule is not None
+        assert "java.referenced" in rule.when
+        assert rule.when["java.referenced"]["location"] == "ENUM_CONSTANT"
+
+    def test_return_type_location(self):
+        """Should generate rule with RETURN_TYPE location"""
+        generator = AnalyzerRuleGenerator(source_framework="jdk-17", target_framework="jdk-21")
+
+        pattern = MigrationPattern(
+            source_pattern="java.util.Date",
+            source_fqn="java.util.Date",
+            location_type=LocationType.RETURN_TYPE,
+            complexity="MEDIUM",
+            category="api",
+            rationale="Method return type detection",
+        )
+
+        rule = generator._pattern_to_rule(pattern)
+
+        assert rule is not None
+        assert "java.referenced" in rule.when
+        assert rule.when["java.referenced"]["location"] == "RETURN_TYPE"
+
+    def test_variable_declaration_location(self):
+        """Should generate rule with VARIABLE_DECLARATION location"""
+        generator = AnalyzerRuleGenerator(source_framework="jdk-17", target_framework="jdk-21")
+
+        pattern = MigrationPattern(
+            source_pattern="java.util.Vector",
+            source_fqn="java.util.Vector",
+            location_type=LocationType.VARIABLE_DECLARATION,
+            complexity="MEDIUM",
+            category="api",
+            rationale="Variable declaration detection",
+        )
+
+        rule = generator._pattern_to_rule(pattern)
+
+        assert rule is not None
+        assert "java.referenced" in rule.when
+        assert rule.when["java.referenced"]["location"] == "VARIABLE_DECLARATION"
+
+    def test_field_location(self):
+        """Should generate rule with FIELD location"""
+        generator = AnalyzerRuleGenerator(source_framework="jdk-17", target_framework="jdk-21")
+
+        pattern = MigrationPattern(
+            source_pattern="java.lang.String",
+            source_fqn="java.lang.String",
+            location_type=LocationType.FIELD,
+            complexity="MEDIUM",
+            category="api",
+            rationale="Field declaration detection",
+        )
+
+        rule = generator._pattern_to_rule(pattern)
+
+        assert rule is not None
+        assert "java.referenced" in rule.when
+        assert rule.when["java.referenced"]["location"] == "FIELD"
+
+    def test_method_location(self):
+        """Should generate rule with METHOD location"""
+        generator = AnalyzerRuleGenerator(
+            source_framework="jakarta-9", target_framework="jakarta-10"
+        )
+
+        pattern = MigrationPattern(
+            source_pattern="javax.ejb.Stateless",
+            source_fqn="javax.ejb.Stateless",
+            location_type=LocationType.METHOD,
+            complexity="MEDIUM",
+            category="api",
+            rationale="Method annotation detection",
+        )
+
+        rule = generator._pattern_to_rule(pattern)
+
+        assert rule is not None
+        assert "java.referenced" in rule.when
+        assert rule.when["java.referenced"]["location"] == "METHOD"
+
+    def test_class_location(self):
+        """Should generate rule with CLASS location"""
+        generator = AnalyzerRuleGenerator(
+            source_framework="jakarta-9", target_framework="jakarta-10"
+        )
+
+        pattern = MigrationPattern(
+            source_pattern="javax.persistence.Entity",
+            source_fqn="javax.persistence.Entity",
+            location_type=LocationType.CLASS,
+            complexity="MEDIUM",
+            category="api",
+            rationale="Class annotation detection",
+        )
+
+        rule = generator._pattern_to_rule(pattern)
+
+        assert rule is not None
+        assert "java.referenced" in rule.when
+        assert rule.when["java.referenced"]["location"] == "CLASS"
+
+    def test_package_location_with_valid_wildcard(self):
+        """Should generate PACKAGE rule with correct wildcard syntax"""
+        generator = AnalyzerRuleGenerator(source_framework="jdk-17", target_framework="jdk-21")
+
+        pattern = MigrationPattern(
+            source_pattern="java.applet*",
+            source_fqn="java.applet*",
+            location_type=LocationType.PACKAGE,
+            complexity="MEDIUM",
+            category="api",
+            rationale="Package wildcard detection",
+        )
+
+        rule = generator._pattern_to_rule(pattern)
+
+        assert rule is not None
+        assert "java.referenced" in rule.when
+        assert rule.when["java.referenced"]["location"] == "PACKAGE"
+        assert rule.when["java.referenced"]["pattern"] == "java.applet*"
+
+    def test_all_location_types_generate_valid_rules(self):
+        """Should successfully generate rules for all location types"""
+        generator = AnalyzerRuleGenerator(source_framework="test", target_framework="test2")
+
+        location_types = [
+            LocationType.TYPE,
+            LocationType.IMPORT,
+            LocationType.INHERITANCE,
+            LocationType.METHOD_CALL,
+            LocationType.CONSTRUCTOR_CALL,
+            LocationType.PACKAGE,
+            LocationType.IMPLEMENTS_TYPE,
+            LocationType.ENUM_CONSTANT,
+            LocationType.RETURN_TYPE,
+            LocationType.VARIABLE_DECLARATION,
+            LocationType.FIELD,
+            LocationType.METHOD,
+            LocationType.CLASS,
+            LocationType.ANNOTATION,
+        ]
+
+        for location_type in location_types:
+            pattern = MigrationPattern(
+                source_pattern=f"Test{location_type.value}",
+                source_fqn=f"com.example.Test{location_type.value}",
+                location_type=location_type,
+                complexity="MEDIUM",
+                category="api",
+                rationale=f"Test {location_type.value} location",
+            )
+
+            rule = generator._pattern_to_rule(pattern)
+
+            assert rule is not None, f"Failed to generate rule for {location_type.value}"
+            assert "java.referenced" in rule.when
+            assert rule.when["java.referenced"]["location"] == location_type.value
