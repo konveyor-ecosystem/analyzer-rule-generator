@@ -15,9 +15,10 @@ The Analyzer Rule Generator uses Large Language Models (LLMs) to automatically e
 
 ## Features
 
-- **Multiple Input Formats**: URLs, Markdown files, plain text
+- **Multiple Input Formats**: URLs, Markdown files, plain text, ESLint codemods
 - **Multi-Language Support**: Java, TypeScript/React, Go, Python, CSS, and more
 - **LLM-Powered Extraction**: Automatically identifies migration patterns, complexity, and conditions
+- **ESLint Rule Extraction**: Direct extraction from ESLint codemod repositories (e.g., PatternFly pf-codemods) without LLM
 - **Migration Complexity Classification**: Automatic classification (trivial, low, medium, high, expert) for generated and existing rules
 - **Konveyor Analyzer Format**: Generates rules compatible with analyzer-lsp
 - **Flexible LLM Support**: OpenAI, Anthropic Claude, Google Gemini
@@ -132,6 +133,25 @@ python scripts/generate_rules.py \
 ```
 
 ### TypeScript/React Migration (PatternFly v5 to v6)
+
+**Option 1: From ESLint Codemods (Recommended - No LLM required)**
+
+```bash
+python scripts/generate_rules.py \
+  --eslint-repo https://github.com/patternfly/pf-codemods.git \
+  --source patternfly-v5 \
+  --target patternfly-v6 \
+  --output examples/output/patternfly-v6/
+```
+
+Extracts rules directly from PatternFly's official ESLint codemods. **Advantages:**
+- No LLM API costs
+- High-quality rules based on official codemods
+- Includes code examples and documentation links
+- **Extracts 91 rules from 106 ESLint rules (86% coverage)**
+- Supports: prop renames/removals, import changes, component renames, TypeScript types, markup warnings
+
+**Option 2: From Migration Guide (LLM-based)**
 
 ```bash
 python scripts/generate_rules.py \
