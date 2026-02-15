@@ -336,6 +336,12 @@ class ESLintRuleExtractor:
             return self._parse_rename_props(rule_name, ts_content)
         elif "removeProps(" in ts_content:
             return self._parse_remove_props(rule_name, ts_content)
+        elif "moveSpecifiers(" in ts_content:
+            return self._parse_move_specifiers(rule_name, ts_content)
+        elif "renameComponent(" in ts_content:
+            return self._parse_rename_component(rule_name, ts_content)
+        elif "renameInterface(" in ts_content:
+            return self._parse_rename_interface(rule_name, ts_content)
         elif "deprecateComponent(" in ts_content or "deprecated" in ts_content.lower():
             return self._parse_deprecation(rule_name, ts_content)
         else:
@@ -550,6 +556,144 @@ class ESLintRuleExtractor:
 
         return None
 
+    def _parse_move_specifiers(
+        self, rule_name: str, ts_content: str
+    ) -> Optional[ESLintRuleMetadata]:
+        """
+        Parse a moveSpecifiers() ESLint rule (import path changes).
+
+        Pattern: moveSpecifiers(specifiersToMove, fromPackage, toPackage, message)
+        Example: Move DualListSelector from '@patternfly/react-core/next' to '@patternfly/react-core'
+        """
+        # Extract the array of specifiers to move
+        specifiers_match = re.search(
+            r'specifiersToMove\s*=\s*\[([^\]]+)\]', ts_content, re.DOTALL
+        )
+        if not specifiers_match:
+            logger.warning(f"Could not find specifiersToMove in {rule_name}")
+            return None
+
+        specifiers_block = specifiers_match.group(1)
+
+        # Extract component names from the array
+        components = re.findall(r'"([^"]+)"', specifiers_block)
+        if not components:
+            logger.warning(f"No components found in specifiersToMove for {rule_name}")
+            return None
+
+        # Extract fromPackage and toPackage
+        from_match = re.search(r'fromPackage\s*=\s*"([^"]+)"', ts_content)
+        to_match = re.search(r'toPackage\s*=\s*"([^"]+)"', ts_content)
+
+        if not from_match or not to_match:
+            logger.warning(f"Could not find fromPackage/toPackage in {rule_name}")
+            return None
+
+        from_package = from_match.group(1)
+        to_package = to_match.group(1)
+
+        # Extract message if present
+        message_match = re.search(r'messageAfterImportNameChange\s*=\s*"([^"]+)"', ts_content)
+        message = message_match.group(1) if message_match else None
+
+        # For moveSpecifiers, we'll store the first component as the "main" component
+        # and create multiple patterns in _metadata_to_patterns
+        return ESLintRuleMetadata(
+            rule_name=rule_name,
+            rule_type="import",
+            component_name=", ".join(components),  # Store all components
+            prop_renames={from_package: to_package},  # Reuse prop_renames for packages
+            messages={"import": message or f"Import path changed from {from_package} to {to_package}"},
+        )
+
+    def _parse_rename_component(
+        self, rule_name: str, ts_content: str
+    ) -> Optional[ESLintRuleMetadata]:
+        """
+        Parse a renameComponent() ESLint rule.
+
+        Pattern: renameComponent({ OldComponent: "NewComponent" })
+        Example: MastheadBrand → MastheadLogo
+        """
+        # Find the renameComponent call
+        rename_match = re.search(r'renames\s*=\s*\{([^}]+)\}', ts_content, re.DOTALL)
+        if not rename_match:
+            # Try alternate pattern
+            rename_match = re.search(r'renameComponent\s*\(\s*\{([^}]+)\}', ts_content, re.DOTALL)
+
+        if not rename_match:
+            logger.warning(f"Could not find renameComponent pattern in {rule_name}")
+            return None
+
+        rename_block = rename_match.group(1)
+
+        # Extract component renames
+        component_renames = {}
+        for match in re.finditer(r'(\w+)\s*:\s*"([^"]+)"', rename_block):
+            old_name = match.group(1)
+            new_name = match.group(2)
+            component_renames[old_name] = new_name
+
+        if not component_renames:
+            logger.warning(f"No component renames found in {rule_name}")
+            return None
+
+        # For component renames, use the first rename as primary
+        # (we'll create multiple patterns in _metadata_to_patterns if needed)
+        first_old = list(component_renames.keys())[0]
+        first_new = component_renames[first_old]
+
+        return ESLintRuleMetadata(
+            rule_name=rule_name,
+            rule_type="component-rename",
+            component_name=first_old,
+            prop_renames=component_renames,  # Store all renames
+        )
+
+    def _parse_rename_interface(
+        self, rule_name: str, ts_content: str
+    ) -> Optional[ESLintRuleMetadata]:
+        """
+        Parse a renameInterface() ESLint rule.
+
+        Pattern: renameInterface({ OldInterface: { newName: "NewInterface", message: "..." } })
+        Example: FormFiledGroupHeaderTitleTextObject → FormFieldGroupHeaderTitleTextObject
+        """
+        # Find the renameInterface call
+        rename_match = re.search(r'renameInterface\s*\(\s*\{([^}]+)\}', ts_content, re.DOTALL)
+        if not rename_match:
+            logger.warning(f"Could not find renameInterface pattern in {rule_name}")
+            return None
+
+        rename_block = rename_match.group(1)
+
+        # Extract interface name (first identifier before colon)
+        interface_match = re.search(r'(\w+)\s*:\s*\{', rename_block)
+        if not interface_match:
+            logger.warning(f"Could not extract interface name from {rule_name}")
+            return None
+
+        old_interface = interface_match.group(1)
+
+        # Extract new name and message
+        new_name_match = re.search(r'newName\s*:\s*"([^"]+)"', rename_block)
+        message_match = re.search(r'message\s*:\s*"([^"]+)"', rename_block, re.DOTALL)
+
+        if not new_name_match:
+            logger.warning(f"Could not extract newName from {rule_name}")
+            return None
+
+        new_interface = new_name_match.group(1)
+        message = message_match.group(1) if message_match else None
+
+        return ESLintRuleMetadata(
+            rule_name=rule_name,
+            rule_type="interface-rename",
+            component_name=old_interface,
+            prop_renames={old_interface: new_interface},
+            messages={"interface": message} if message else {},
+        )
+
     def _metadata_to_patterns(
         self, metadata: ESLintRuleMetadata, source_framework: str, target_framework: str
     ) -> List[MigrationPattern]:
@@ -598,6 +742,51 @@ class ESLintRuleExtractor:
             pattern = self._create_deprecation_pattern(
                 metadata.component_name,
                 metadata.messages.get("", "Component deprecated"),
+                metadata.example_before,
+                metadata.example_after,
+                metadata.documentation_url,
+            )
+            patterns.append(pattern)
+
+        elif metadata.rule_type == "import":
+            # Create patterns for import path changes
+            # Extract from_package and to_package from prop_renames
+            from_package, to_package = list(metadata.prop_renames.items())[0]
+            components = metadata.component_name.split(", ")
+            message = metadata.messages.get("import", "")
+
+            for component in components:
+                pattern = self._create_import_pattern(
+                    component.strip(),
+                    from_package,
+                    to_package,
+                    message,
+                    metadata.example_before,
+                    metadata.example_after,
+                    metadata.documentation_url,
+                )
+                patterns.append(pattern)
+
+        elif metadata.rule_type == "component-rename":
+            # Create patterns for component renames
+            for old_component, new_component in metadata.prop_renames.items():
+                pattern = self._create_component_rename_pattern(
+                    old_component,
+                    new_component,
+                    metadata.example_before,
+                    metadata.example_after,
+                    metadata.documentation_url,
+                )
+                patterns.append(pattern)
+
+        elif metadata.rule_type == "interface-rename":
+            # Create pattern for interface rename
+            old_interface, new_interface = list(metadata.prop_renames.items())[0]
+            message = metadata.messages.get("interface")
+            pattern = self._create_interface_rename_pattern(
+                old_interface,
+                new_interface,
+                message,
                 metadata.example_before,
                 metadata.example_after,
                 metadata.documentation_url,
@@ -691,6 +880,94 @@ class ESLintRuleExtractor:
             category="api",
             concern="component-deprecation",
             provider_type="nodejs",
+            rationale=message,
+            example_before=example_before,
+            example_after=example_after,
+            documentation_url=doc_url,
+        )
+
+    def _create_import_pattern(
+        self,
+        component: str,
+        from_package: str,
+        to_package: str,
+        custom_message: Optional[str],
+        example_before: Optional[str],
+        example_after: Optional[str],
+        doc_url: Optional[str],
+    ) -> MigrationPattern:
+        """Create a MigrationPattern for import path changes."""
+        message = custom_message or f"Import path changed from {from_package} to {to_package}"
+
+        # Use builtin.filecontent to detect the old import path
+        return MigrationPattern(
+            source_pattern=f"{component} import from {from_package}",
+            target_pattern=f"{component} import from {to_package}",
+            source_fqn=from_package,
+            complexity="TRIVIAL",
+            category="api",
+            concern="imports",
+            provider_type="builtin",
+            file_pattern="\\.(j|t)sx?$",
+            rationale=f"{component} {message}",
+            example_before=example_before,
+            example_after=example_after,
+            documentation_url=doc_url,
+        )
+
+    def _create_component_rename_pattern(
+        self,
+        old_component: str,
+        new_component: str,
+        example_before: Optional[str],
+        example_after: Optional[str],
+        doc_url: Optional[str],
+    ) -> MigrationPattern:
+        """Create a MigrationPattern for component renames."""
+        message = f"{old_component} has been renamed to {new_component}"
+
+        # Use combo rule to detect both import and usage
+        return MigrationPattern(
+            source_pattern=old_component,
+            target_pattern=new_component,
+            source_fqn=old_component,
+            complexity="LOW",
+            category="api",
+            concern="component-renames",
+            provider_type="combo",
+            when_combo={
+                "nodejs_pattern": old_component,
+                "builtin_pattern": f"<{old_component}[^>]*>",
+                "file_pattern": "\\.(j|t)sx?$",
+            },
+            rationale=message,
+            example_before=example_before,
+            example_after=example_after,
+            documentation_url=doc_url,
+        )
+
+    def _create_interface_rename_pattern(
+        self,
+        old_interface: str,
+        new_interface: str,
+        custom_message: Optional[str],
+        example_before: Optional[str],
+        example_after: Optional[str],
+        doc_url: Optional[str],
+    ) -> MigrationPattern:
+        """Create a MigrationPattern for TypeScript interface renames."""
+        message = custom_message or f"{old_interface} has been renamed to {new_interface}"
+
+        # Use builtin.filecontent to detect TypeScript interface usage
+        return MigrationPattern(
+            source_pattern=old_interface,
+            target_pattern=new_interface,
+            source_fqn=old_interface,
+            complexity="TRIVIAL",
+            category="api",
+            concern="typescript-types",
+            provider_type="builtin",
+            file_pattern="\\.(ts|tsx)$",
             rationale=message,
             example_before=example_before,
             example_after=example_after,
