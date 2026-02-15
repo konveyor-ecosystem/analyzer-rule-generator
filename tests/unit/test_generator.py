@@ -2090,7 +2090,9 @@ class TestNewJavaLocationTypes:
 
     def test_method_location(self):
         """Should generate rule with METHOD location"""
-        generator = AnalyzerRuleGenerator(source_framework="jakarta-9", target_framework="jakarta-10")
+        generator = AnalyzerRuleGenerator(
+            source_framework="jakarta-9", target_framework="jakarta-10"
+        )
 
         pattern = MigrationPattern(
             source_pattern="javax.ejb.Stateless",
@@ -2109,7 +2111,9 @@ class TestNewJavaLocationTypes:
 
     def test_class_location(self):
         """Should generate rule with CLASS location"""
-        generator = AnalyzerRuleGenerator(source_framework="jakarta-9", target_framework="jakarta-10")
+        generator = AnalyzerRuleGenerator(
+            source_framework="jakarta-9", target_framework="jakarta-10"
+        )
 
         pattern = MigrationPattern(
             source_pattern="javax.persistence.Entity",
