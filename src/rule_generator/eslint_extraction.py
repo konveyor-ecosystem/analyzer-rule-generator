@@ -344,6 +344,9 @@ class ESLintRuleExtractor:
             return self._parse_rename_interface(rule_name, ts_content)
         elif "deprecateComponent(" in ts_content or "deprecated" in ts_content.lower():
             return self._parse_deprecation(rule_name, ts_content)
+        elif "create: function" in ts_content:
+            # Try to extract warn-only pattern as fallback
+            return self._parse_warn_only(rule_name, ts_content)
         else:
             # Unknown or complex rule type
             logger.warning(f"Unknown rule type for {rule_name}")
@@ -694,6 +697,83 @@ class ESLintRuleExtractor:
             messages={"interface": message} if message else {},
         )
 
+    def _parse_warn_only(self, rule_name: str, ts_content: str) -> Optional[ESLintRuleMetadata]:
+        """
+        Parse a warn-only ESLint rule (create: function with context.report).
+
+        These rules detect component usage and provide warnings about markup/API changes
+        without automatic fixes.
+
+        Pattern:
+            create: function (context) {
+                const componentImport = imports.find(...)
+                return { JSXOpeningElement(node) {
+                    context.report({ message: "Warning..." })
+                }}
+            }
+        """
+        # Extract component names from getFromPackage
+        # Pattern: getFromPackage(context, "@patternfly/react-core")
+        package_match = re.search(r'getFromPackage\([^,]+,\s*["\']([^"\']+)["\']', ts_content)
+        if not package_match:
+            # Not a standard warn-only pattern
+            return None
+
+        package_name = package_match.group(1)
+
+        # Try to extract component name from imports.find()
+        # Pattern: imports.find(... imported.name === "ComponentName")
+        component_matches = re.findall(
+            r'imported\.name\s*===\s*["\'](\w+)["\']', ts_content
+        )
+
+        # Also check for componentImports.filter pattern (multiple components)
+        filter_matches = re.findall(
+            r'\[([^\]]+)\]\.includes\(specifier\.imported\.name\)', ts_content, re.DOTALL
+        )
+        if filter_matches:
+            # Extract component names from array like ["Th", "Td"]
+            for match in filter_matches:
+                additional = re.findall(r'["\'](\w+)["\']', match)
+                component_matches.extend(additional)
+
+        if not component_matches:
+            # Try alternate pattern: specifier.imported.name === 'ComponentName'
+            alt_matches = re.findall(r'specifier\.imported\.name\s*===\s*["\'](\w+)["\']', ts_content)
+            component_matches.extend(alt_matches)
+
+        if not component_matches:
+            logger.warning(f"Could not extract component name from warn-only rule {rule_name}")
+            return None
+
+        # Extract warning message from context.report()
+        # Pattern: message: "The markup for..."
+        message_match = re.search(
+            r'message\s*:\s*["\']([^"\']+)["\']', ts_content, re.DOTALL
+        )
+        if not message_match:
+            # Try multi-line string or template literal
+            message_match = re.search(
+                r'message\s*:\s*`([^`]+)`', ts_content, re.DOTALL
+            )
+
+        if not message_match:
+            logger.warning(f"Could not extract warning message from {rule_name}")
+            return None
+
+        warning_message = message_match.group(1).strip()
+
+        # Use first component as primary (create multiple patterns if needed)
+        primary_component = component_matches[0]
+
+        return ESLintRuleMetadata(
+            rule_name=rule_name,
+            rule_type="warn",
+            component_name=", ".join(component_matches),  # Store all components
+            package_name=package_name,
+            messages={"warn": warning_message},
+        )
+
     def _metadata_to_patterns(
         self, metadata: ESLintRuleMetadata, source_framework: str, target_framework: str
     ) -> List[MigrationPattern]:
@@ -792,6 +872,21 @@ class ESLintRuleExtractor:
                 metadata.documentation_url,
             )
             patterns.append(pattern)
+
+        elif metadata.rule_type == "warn":
+            # Create warn-only patterns (one per component)
+            components = metadata.component_name.split(", ")
+            warning_message = metadata.messages.get("warn", "")
+
+            for component in components:
+                pattern = self._create_warn_pattern(
+                    component.strip(),
+                    warning_message,
+                    metadata.example_before,
+                    metadata.example_after,
+                    metadata.documentation_url,
+                )
+                patterns.append(pattern)
 
         return patterns
 
@@ -969,6 +1064,40 @@ class ESLintRuleExtractor:
             provider_type="builtin",
             file_pattern="\\.(ts|tsx)$",
             rationale=message,
+            example_before=example_before,
+            example_after=example_after,
+            documentation_url=doc_url,
+        )
+
+    def _create_warn_pattern(
+        self,
+        component: str,
+        warning_message: str,
+        example_before: Optional[str],
+        example_after: Optional[str],
+        doc_url: Optional[str],
+    ) -> MigrationPattern:
+        """Create a MigrationPattern for warn-only rules (markup/API changes)."""
+        # Extract short description from warning message (first sentence)
+        short_desc = warning_message.split('.')[0] if '.' in warning_message else warning_message
+        if len(short_desc) > 80:
+            short_desc = short_desc[:77] + "..."
+
+        # Use combo rule to detect component usage
+        return MigrationPattern(
+            source_pattern=f"{component} (markup/API change)",
+            target_pattern=None,  # No automatic replacement
+            source_fqn=component,
+            complexity="MEDIUM",
+            category="potential",
+            concern="markup-changes",
+            provider_type="combo",
+            when_combo={
+                "nodejs_pattern": component,
+                "builtin_pattern": f"<{component}[^>]*>",
+                "file_pattern": "\\.(j|t)sx?$",
+            },
+            rationale=f"{short_desc}. Manual review required: {warning_message}",
             example_before=example_before,
             example_after=example_after,
             documentation_url=doc_url,

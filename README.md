@@ -148,8 +148,8 @@ Extracts rules directly from PatternFly's official ESLint codemods. **Advantages
 - No LLM API costs
 - High-quality rules based on official codemods
 - Includes code examples and documentation links
-- **Extracts 45 rules from 106 ESLint rules (42% coverage)**
-- Supports: prop renames/removals, import path changes, component renames, TypeScript interfaces
+- **Extracts 91 rules from 106 ESLint rules (86% coverage)**
+- Supports: prop renames/removals, import changes, component renames, TypeScript types, markup warnings
 
 **Option 2: From Migration Guide (LLM-based)**
 
