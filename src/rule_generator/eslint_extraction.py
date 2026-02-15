@@ -167,9 +167,7 @@ class ESLintRuleExtractor:
                     continue
 
                 # Convert to MigrationPattern objects
-                patterns = self._metadata_to_patterns(
-                    metadata, source_framework, target_framework
-                )
+                patterns = self._metadata_to_patterns(metadata, source_framework, target_framework)
 
                 if patterns:
                     logger.info(f"  → Extracted {len(patterns)} patterns from {rule_name}")
@@ -352,9 +350,7 @@ class ESLintRuleExtractor:
             logger.warning(f"Unknown rule type for {rule_name}")
             return None
 
-    def _parse_rename_props(
-        self, rule_name: str, ts_content: str
-    ) -> Optional[ESLintRuleMetadata]:
+    def _parse_rename_props(self, rule_name: str, ts_content: str) -> Optional[ESLintRuleMetadata]:
         """Parse a renameProps() ESLint rule."""
         # Try to extract component name and prop renames
         # Pattern: renameProps({ ComponentName: { oldProp: "newProp" } })
@@ -400,7 +396,9 @@ class ESLintRuleExtractor:
             prop_section_end = rename_block.find('}', prop_section_start)
             if prop_section_end != -1:
                 prop_section = rename_block[prop_section_start:prop_section_end]
-                message_match = re.search(r'message\s*:\s*["\']([^"\']+)["\']', prop_section, re.DOTALL)
+                message_match = re.search(
+                    r'message\s*:\s*["\']([^"\']+)["\']', prop_section, re.DOTALL
+                )
                 if message_match:
                     messages[old_prop] = message_match.group(1).strip()
 
@@ -569,9 +567,7 @@ class ESLintRuleExtractor:
         Example: Move DualListSelector from '@patternfly/react-core/next' to '@patternfly/react-core'
         """
         # Extract the array of specifiers to move
-        specifiers_match = re.search(
-            r'specifiersToMove\s*=\s*\[([^\]]+)\]', ts_content, re.DOTALL
-        )
+        specifiers_match = re.search(r'specifiersToMove\s*=\s*\[([^\]]+)\]', ts_content, re.DOTALL)
         if not specifiers_match:
             logger.warning(f"Could not find specifiersToMove in {rule_name}")
             return None
@@ -606,7 +602,9 @@ class ESLintRuleExtractor:
             rule_type="import",
             component_name=", ".join(components),  # Store all components
             prop_renames={from_package: to_package},  # Reuse prop_renames for packages
-            messages={"import": message or f"Import path changed from {from_package} to {to_package}"},
+            messages={
+                "import": message or f"Import path changed from {from_package} to {to_package}"
+            },
         )
 
     def _parse_rename_component(
@@ -723,9 +721,7 @@ class ESLintRuleExtractor:
 
         # Try to extract component name from imports.find()
         # Pattern: imports.find(... imported.name === "ComponentName")
-        component_matches = re.findall(
-            r'imported\.name\s*===\s*["\'](\w+)["\']', ts_content
-        )
+        component_matches = re.findall(r'imported\.name\s*===\s*["\'](\w+)["\']', ts_content)
 
         # Also check for componentImports.filter pattern (multiple components)
         filter_matches = re.findall(
@@ -739,7 +735,9 @@ class ESLintRuleExtractor:
 
         if not component_matches:
             # Try alternate pattern: specifier.imported.name === 'ComponentName'
-            alt_matches = re.findall(r'specifier\.imported\.name\s*===\s*["\'](\w+)["\']', ts_content)
+            alt_matches = re.findall(
+                r'specifier\.imported\.name\s*===\s*["\'](\w+)["\']', ts_content
+            )
             component_matches.extend(alt_matches)
 
         if not component_matches:
@@ -748,14 +746,10 @@ class ESLintRuleExtractor:
 
         # Extract warning message from context.report()
         # Pattern: message: "The markup for..."
-        message_match = re.search(
-            r'message\s*:\s*["\']([^"\']+)["\']', ts_content, re.DOTALL
-        )
+        message_match = re.search(r'message\s*:\s*["\']([^"\']+)["\']', ts_content, re.DOTALL)
         if not message_match:
             # Try multi-line string or template literal
-            message_match = re.search(
-                r'message\s*:\s*`([^`]+)`', ts_content, re.DOTALL
-            )
+            message_match = re.search(r'message\s*:\s*`([^`]+)`', ts_content, re.DOTALL)
 
         if not message_match:
             logger.warning(f"Could not extract warning message from {rule_name}")
