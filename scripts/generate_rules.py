@@ -155,7 +155,10 @@ def main():
 
     input_group.add_argument(
         "--eslint-repo",
-        help="Git repository URL or local path to ESLint codemod rules (e.g., https://github.com/patternfly/pf-codemods.git)",
+        help=(
+            "Git repository URL or local path to ESLint codemod rules "
+            "(e.g., https://github.com/patternfly/pf-codemods.git)"
+        ),
     )
 
     parser.add_argument(

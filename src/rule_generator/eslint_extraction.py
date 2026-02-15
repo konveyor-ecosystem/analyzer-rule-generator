@@ -46,7 +46,7 @@ import re
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 from .logging_setup import get_logger
 from .schema import MigrationPattern
@@ -564,7 +564,8 @@ class ESLintRuleExtractor:
         Parse a moveSpecifiers() ESLint rule (import path changes).
 
         Pattern: moveSpecifiers(specifiersToMove, fromPackage, toPackage, message)
-        Example: Move DualListSelector from '@patternfly/react-core/next' to '@patternfly/react-core'
+        Example: Move DualListSelector from '@patternfly/react-core/next'
+                 to '@patternfly/react-core'
         """
         # Extract the array of specifiers to move
         specifiers_match = re.search(r'specifiersToMove\s*=\s*\[([^\]]+)\]', ts_content, re.DOTALL)
@@ -642,7 +643,6 @@ class ESLintRuleExtractor:
         # For component renames, use the first rename as primary
         # (we'll create multiple patterns in _metadata_to_patterns if needed)
         first_old = list(component_renames.keys())[0]
-        first_new = component_renames[first_old]
 
         return ESLintRuleMetadata(
             rule_name=rule_name,
@@ -756,9 +756,6 @@ class ESLintRuleExtractor:
             return None
 
         warning_message = message_match.group(1).strip()
-
-        # Use first component as primary (create multiple patterns if needed)
-        primary_component = component_matches[0]
 
         return ESLintRuleMetadata(
             rule_name=rule_name,
